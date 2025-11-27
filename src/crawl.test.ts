@@ -1,4 +1,4 @@
-import { normaliseURL, getURLsFromHTML, getH1FromHTML, getFirstParagraphFromHTML, getImagesFromHTML} from "./crawl.js"
+import { normaliseURL, getURLsFromHTML, getH1FromHTML, getFirstParagraphFromHTML, getImagesFromHTML, extractPageData} from "./crawl.js"
 import { test, expect } from "vitest"
 
 /*
@@ -275,5 +275,103 @@ test("getImagesFromHTML no images", () => {
   const inputBody = `<html><body><p>No images here</p></body></html>`
   const actual = getImagesFromHTML(inputBody, inputURL)
   const expected: string[] = []
+  expect(actual).toEqual(expected)
+})
+
+test("extractPageData basic", () => {
+  const inputURL = "https://blog.boot.dev"
+  const inputBody = `
+    <html><body>
+      <h1>Test Title</h1>
+      <p>This is the first paragraph.</p>
+      <a href="/link1">Link 1</a>
+      <img src="/image1.jpg" alt="Image 1">
+    </body></html>
+  `
+
+  const actual = extractPageData(inputBody, inputURL)
+  const expected = {
+    url: "https://blog.boot.dev",
+    h1: "Test Title",
+    first_paragraph: "This is the first paragraph.",
+    outgoing_links: ["https://blog.boot.dev/link1"],
+    image_urls: ["https://blog.boot.dev/image1.jpg"],
+  }
+
+  expect(actual).toEqual(expected)
+})
+
+test("extractPageData with multiple elements", () => {
+  const inputURL = "https://example.com"
+  const inputBody = `
+    <html>
+      <body>
+        <h1>Main Heading</h1>
+        <p>Outside paragraph.</p>
+        <main>
+          <p>Main paragraph content.</p>
+        </main>
+        <a href="/about">About</a>
+        <a href="https://external.com">External</a>
+        <img src="/logo.png" alt="Logo">
+        <img src="/banner.jpg" alt="Banner">
+      </body>
+    </html>
+  `
+
+  const actual = extractPageData(inputBody, inputURL)
+  const expected = {
+    url: "https://example.com",
+    h1: "Main Heading",
+    first_paragraph: "Main paragraph content.",
+    outgoing_links: [
+      "https://example.com/about",
+      "https://external.com/"
+    ],
+    image_urls: [
+      "https://example.com/logo.png",
+      "https://example.com/banner.jpg"
+    ],
+  }
+
+  expect(actual).toEqual(expected)
+})
+
+test("extractPageData missing elements", () => {
+  const inputURL = "https://example.com"
+  const inputBody = `
+    <html>
+      <body>
+        <p>Only a paragraph here.</p>
+        <a href="/contact">Contact</a>
+      </body>
+    </html>
+  `
+
+  const actual = extractPageData(inputBody, inputURL)
+  const expected = {
+    url: "https://example.com",
+    h1: "", // No h1 tag
+    first_paragraph: "Only a paragraph here.",
+    outgoing_links: ["https://example.com/contact"],
+    image_urls: [], // No images
+  }
+
+  expect(actual).toEqual(expected)
+})
+
+test("extractPageData empty page", () => {
+  const inputURL = "https://example.com"
+  const inputBody = `<html><body></body></html>`
+
+  const actual = extractPageData(inputBody, inputURL)
+  const expected = {
+    url: "https://example.com",
+    h1: "",
+    first_paragraph: "",
+    outgoing_links: [],
+    image_urls: [],
+  }
+
   expect(actual).toEqual(expected)
 })

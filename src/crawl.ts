@@ -4,6 +4,14 @@ interface Pages {
     [key: string]: number
 }
 
+interface ExtractedPageData {
+  url: string
+  h1: string
+  first_paragraph: string
+  outgoing_links: string[]
+  image_urls: string[]
+}
+
 async function crawlPage(baseURL: string, currentURL: string, pages: Pages): Promise<Pages> {
 
     const baseURLObj = new URL(baseURL)
@@ -128,11 +136,22 @@ function getImagesFromHTML(html: string, baseURL: string): string[] {
   return urls
 }
 
+function extractPageData(html: string, pageURL: string): ExtractedPageData {
+  return {
+    url: pageURL,
+    h1: getH1FromHTML(html),
+    first_paragraph: getFirstParagraphFromHTML(html),
+    outgoing_links: getURLsFromHTML(html, pageURL),
+    image_urls: getImagesFromHTML(html, pageURL)
+  }
+}
+
 export {
     normaliseURL,
     getURLsFromHTML,
     crawlPage,
     getH1FromHTML,
     getFirstParagraphFromHTML,
-    getImagesFromHTML
+    getImagesFromHTML,
+    extractPageData
 }
