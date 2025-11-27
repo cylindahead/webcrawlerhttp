@@ -86,8 +86,32 @@ function normaliseURL(urlString: string): string {
     return hostPath
 }
 
+function getH1FromHTML(html: string): string {
+    const dom = new JSDOM(html)
+  const h1Element = dom.window.document.querySelector("h1")
+  return h1Element?.textContent?.trim() || ""
+}
+
+function getFirstParagraphFromHTML(html: string): string {
+    const dom = new JSDOM(html)
+    const document = dom.window.document
+
+    const mainElement = document.querySelector("main")
+    if (mainElement) {
+        const mainParagraph = mainElement.querySelector("p")
+        if (mainParagraph) {
+            return mainParagraph.textContent?.trim() || ""
+        }
+    }
+
+    const firstParagraph = document.querySelector("p")
+    return firstParagraph?.textContent?.trim() || ""
+}
+
 export {
     normaliseURL,
     getURLsFromHTML,
-    crawlPage
+    crawlPage,
+    getH1FromHTML,
+    getFirstParagraphFromHTML
 }
