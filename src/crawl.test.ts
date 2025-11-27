@@ -1,5 +1,5 @@
-const { normaliseURL, getURLsFromHTML } = require("./crawl.js")
-const { test, expect } = require("@jest/globals")
+import { normaliseURL, getURLsFromHTML } from "./crawl.js"
+import { test, expect } from "vitest"
 
 /*
 we want to normalise different strings 
@@ -102,6 +102,6 @@ test("getURLsFromHTML invalid", () => {
 `
     const inputBaseURL = "https://blog.boot.dev"
     const actual = getURLsFromHTML(inputHTMLBody, inputBaseURL)
-    const expected = []
+    const expected: string[] = []
     expect(actual).toEqual(expected)
 })

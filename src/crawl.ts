@@ -1,7 +1,10 @@
-const { JSDOM } = require("jsdom")
+import { JSDOM } from "jsdom"
 
-async function crawlPage(baseURL, currentURL, pages) {
-    
+interface Pages {
+    [key: string]: number
+}
+
+async function crawlPage(baseURL: string, currentURL: string, pages: Pages): Promise<Pages> {
 
     const baseURLObj = new URL(baseURL)
     const currentURLObj = new URL(currentURL)
@@ -28,7 +31,7 @@ async function crawlPage(baseURL, currentURL, pages) {
         }
 
         const contentType = resp.headers.get("content-type")
-        if (!contentType.includes("text/html")) {
+        if (!contentType?.includes("text/html")) {
             console.log(`not html response, content type: ${contentType}, on page: ${currentURL}`)
             return pages
         }
@@ -40,31 +43,33 @@ async function crawlPage(baseURL, currentURL, pages) {
         for (const nextURL of nextURLs) {
             pages = await crawlPage(baseURL, nextURL, pages)
         }
-    } catch (err) {
+    } catch (err:any) {
         console.log(`error in fetch: ${err.message}, on page: ${currentURL}`)
     }
     return pages
 }
 
-function getURLsFromHTML(htmlBody, baseURL) {
-    const urls = []
+function getURLsFromHTML(htmlBody: string, baseURL: string): string[] {
+    const urls: string[] = []
     const dom = new JSDOM(htmlBody)
     const linkElements = dom.window.document.querySelectorAll("a")
     for (const linkElement of linkElements) {
-        if (linkElement.href.slice(0, 1) === "/") {
-            // relative
+        const href = linkElement.getAttribute("href")
+        if (!href) continue
+        if (href.slice(0, 1) === "/") {
+            // relative URL
             try {
-                const urlObj = new URL (`${baseURL}${linkElement.href}`)
+                const urlObj = new URL (`${baseURL}${href}`)
                 urls.push(urlObj.href)
-            } catch (err) {
+            } catch (err:any) {
                 console.log(`error with relative url: ${err.message}`)
             }
         } else {
-            // absolute
+            // absolute URL
             try {
-                const urlObj = new URL (linkElement.href)
+                const urlObj = new URL (href)
                 urls.push(urlObj.href)
-            } catch (err) {
+            } catch (err:any) {
                 console.log(`error with absolute url: ${err.message}`)
             }
         }
@@ -72,7 +77,7 @@ function getURLsFromHTML(htmlBody, baseURL) {
     return urls
 }
 
-function normaliseURL(urlString) {
+function normaliseURL(urlString: string): string {
     const urlObj = new URL(urlString)
     const hostPath = `${urlObj.hostname}${urlObj.pathname}`
     if (hostPath.length > 0 && hostPath.slice(-1) === "/") {
@@ -81,7 +86,7 @@ function normaliseURL(urlString) {
     return hostPath
 }
 
-module.exports = {
+export {
     normaliseURL,
     getURLsFromHTML,
     crawlPage
