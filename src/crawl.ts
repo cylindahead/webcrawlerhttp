@@ -108,10 +108,31 @@ function getFirstParagraphFromHTML(html: string): string {
     return firstParagraph?.textContent?.trim() || ""
 }
 
+function getImagesFromHTML(html: string, baseURL: string): string[] {
+  const urls: string[] = []
+  const dom = new JSDOM(html)
+  const imageElements = dom.window.document.querySelectorAll('img')
+  
+  for (const imageElement of imageElements) {
+    const src = imageElement.getAttribute('src')
+    if (!src) continue; // Skip if no src attribute
+    
+    try {
+      const urlObj = new URL(src, baseURL)
+      urls.push(urlObj.href)
+    } catch (err: any) {
+      console.log(`error with image url: ${err.message}`)
+    }
+  }
+  
+  return urls
+}
+
 export {
     normaliseURL,
     getURLsFromHTML,
     crawlPage,
     getH1FromHTML,
-    getFirstParagraphFromHTML
+    getFirstParagraphFromHTML,
+    getImagesFromHTML
 }

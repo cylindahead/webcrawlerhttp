@@ -1,4 +1,4 @@
-import { normaliseURL, getURLsFromHTML, getH1FromHTML, getFirstParagraphFromHTML } from "./crawl.js"
+import { normaliseURL, getURLsFromHTML, getH1FromHTML, getFirstParagraphFromHTML, getImagesFromHTML} from "./crawl.js"
 import { test, expect } from "vitest"
 
 /*
@@ -206,5 +206,74 @@ test("getFirstParagraphFromHTML empty string", () => {
   const inputBody = ""
   const actual = getFirstParagraphFromHTML(inputBody)
   const expected = ""
+  expect(actual).toEqual(expected)
+})
+
+test("getImagesFromHTML relative", () => {
+  const inputURL = "https://blog.boot.dev"
+  const inputBody = `<html><body><img src="/logo.png" alt="Logo"></body></html>`
+  const actual = getImagesFromHTML(inputBody, inputURL)
+  const expected = ["https://blog.boot.dev/logo.png"]
+  expect(actual).toEqual(expected)
+})
+
+test("getImagesFromHTML absolute", () => {
+  const inputURL = "https://blog.boot.dev"
+  const inputBody = `<html><body><img src="https://blog.boot.dev/image.jpg" alt="Image"></body></html>`
+  const actual = getImagesFromHTML(inputBody, inputURL)
+  const expected = ["https://blog.boot.dev/image.jpg"]
+  expect(actual).toEqual(expected)
+})
+
+test("getImagesFromHTML multiple images", () => {
+  const inputURL = "https://blog.boot.dev"
+  const inputBody = `
+    <html>
+      <body>
+        <img src="/logo.png" alt="Logo">
+        <img src="https://blog.boot.dev/banner.jpg" alt="Banner">
+        <img src="/icons/favicon.ico" alt="Favicon">
+      </body>
+    </html>`
+  const actual = getImagesFromHTML(inputBody, inputURL)
+  const expected = [
+    "https://blog.boot.dev/logo.png",
+    "https://blog.boot.dev/banner.jpg", 
+    "https://blog.boot.dev/icons/favicon.ico"
+  ]
+  expect(actual).toEqual(expected)
+})
+
+test("getImagesFromHTML missing src attribute", () => {
+  const inputURL = "https://blog.boot.dev"
+  const inputBody = `<html><body><img alt="No source"></body></html>`
+  const actual = getImagesFromHTML(inputBody, inputURL)
+  const expected: string[] = []
+  expect(actual).toEqual(expected)
+})
+
+test("getImagesFromHTML mixed valid and invalid", () => {
+  const inputURL = "https://blog.boot.dev"
+  const inputBody = `
+    <html>
+      <body>
+        <img src="/valid.png" alt="Valid">
+        <img alt="No source">
+        <img src="https://blog.boot.dev/another.jpg" alt="Another">
+      </body>
+    </html>`
+  const actual = getImagesFromHTML(inputBody, inputURL)
+  const expected = [
+    "https://blog.boot.dev/valid.png",
+    "https://blog.boot.dev/another.jpg"
+  ]
+  expect(actual).toEqual(expected)
+})
+
+test("getImagesFromHTML no images", () => {
+  const inputURL = "https://blog.boot.dev"
+  const inputBody = `<html><body><p>No images here</p></body></html>`
+  const actual = getImagesFromHTML(inputBody, inputURL)
+  const expected: string[] = []
   expect(actual).toEqual(expected)
 })
