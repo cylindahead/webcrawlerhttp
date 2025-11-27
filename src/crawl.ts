@@ -146,6 +146,32 @@ function extractPageData(html: string, pageURL: string): ExtractedPageData {
   }
 }
 
+async function getHTML(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "BootCrawler/1.0"
+      }
+    })
+
+    if (response.status > 399) {
+      console.log(`error in fetch with status code: ${response.status} on page: ${url}`)
+      return null
+    }
+
+    const contentType = response.headers.get("content-type")
+    if (!contentType?.includes('text/html')) {
+      console.log(`not html response, content type: ${contentType}, on page: ${url}`)
+      return null
+    }
+
+    return await response.text()
+  } catch (err: any) {
+    console.log(`error in fetch: ${err.message}, on page: ${url}`)
+    return null
+  }
+}
+
 export {
     normaliseURL,
     getURLsFromHTML,
@@ -153,5 +179,6 @@ export {
     getH1FromHTML,
     getFirstParagraphFromHTML,
     getImagesFromHTML,
-    extractPageData
+    extractPageData,
+    getHTML
 }

@@ -1,5 +1,18 @@
-import { normaliseURL, getURLsFromHTML, getH1FromHTML, getFirstParagraphFromHTML, getImagesFromHTML, extractPageData} from "./crawl.js"
-import { test, expect } from "vitest"
+import { normaliseURL, getURLsFromHTML, getH1FromHTML, getFirstParagraphFromHTML, getImagesFromHTML, extractPageData, getHTML} from "./crawl.js"
+import { test, expect, vi, beforeEach, afterEach } from "vitest"
+
+// Mock fetch globally for all tests
+vi.stubGlobal("fetch", vi.fn())
+
+// Reset mocks before each test
+beforeEach(() => {
+  vi.resetAllMocks()
+})
+
+// Clear all mocks after each test  
+afterEach(() => {
+  vi.clearAllMocks()
+})
 
 /*
 we want to normalise different strings 
@@ -374,4 +387,52 @@ test("extractPageData empty page", () => {
   }
 
   expect(actual).toEqual(expected)
+})
+
+test("getHTML successful fetch", async () => {
+  const mockResponse = {
+    status: 200,
+    headers: new Map([['content-type', 'text/html']]),
+    text: vi.fn().mockResolvedValue('<html><body>Test HTML</body></html>')
+  }
+  vi.mocked(fetch).mockResolvedValue(mockResponse as any)
+
+  const html = await getHTML('https://example.com')
+  expect(html).toBe('<html><body>Test HTML</body></html>')
+  expect(fetch).toHaveBeenCalledWith('https://example.com', {
+    headers: {
+      'User-Agent': 'BootCrawler/1.0'
+    }
+  })
+})
+
+test("getHTML handles 404 error", async () => {
+  const mockResponse = {
+    status: 404,
+    headers: new Map([['content-type', 'text/html']]),
+    text: vi.fn().mockResolvedValue('Not found')
+  }
+  vi.mocked(fetch).mockResolvedValue(mockResponse as any)
+
+  const html = await getHTML('https://example.com/not-found')
+  expect(html).toBeNull()
+})
+
+test("getHTML handles non-HTML content", async () => {
+  const mockResponse = {
+    status: 200,
+    headers: new Map([['content-type', 'application/json']]),
+    text: vi.fn().mockResolvedValue('{"data": "json"}')
+  }
+  vi.mocked(fetch).mockResolvedValue(mockResponse as any)
+
+  const html = await getHTML('https://example.com/api')
+  expect(html).toBeNull()
+})
+
+test("getHTML handles network error", async () => {
+  vi.mocked(fetch).mockRejectedValue(new Error('Network error'))
+
+  const html = await getHTML('https://example.com')
+  expect(html).toBeNull()
 })
