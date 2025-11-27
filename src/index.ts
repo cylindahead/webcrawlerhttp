@@ -1,28 +1,27 @@
+import { crawlPage } from "./crawl.js"
 import { printReport } from "./report.js"
-import { getHTML } from "./crawl.js"
 
 async function main() {
   if (process.argv.length < 3) {
     console.log("no website provided")
     process.exit(1)
   }
-  if (process.argv.length > 3) {
-    console.log("too many command line arguments")
-    process.exit(1)
-  }
+
   const baseURL = process.argv[2]
+  let maxDepth = 5
+
+  if (process.argv.length >= 4) {
+    const depthArg = parseInt(process.argv[3])
+    if (!isNaN(depthArg) && depthArg > 0) {
+        maxDepth = depthArg
+    }
+  }
 
   console.log(`starting crawl of ${baseURL}`)
+    console.log(`Safety features: max depth ${maxDepth}, 1 second delay between requests`)
   
-  // Test getHTML function
-  const html = await getHTML(baseURL)
-  if (html) {
-    console.log("Successfully fetched HTML:")
-    console.log(html.substring(0, 500) + "...") // Print first 500 chars
-  } else {
-    console.log("Failed to fetch HTML")
-    process.exit(1)
-  }
+  const pages = await crawlPage(baseURL, baseURL, {}, 0, maxDepth)
+  printReport(pages)
 }
 
 main()
