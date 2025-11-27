@@ -1,5 +1,5 @@
 const {crawlPage} = require("./crawl.js")
-const {printReport} = require("./report.js")
+const {printReport} = require("./src/report.js")
 
 async function main() {
     if (process.argv.length < 3) {
