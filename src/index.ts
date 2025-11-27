@@ -1,4 +1,4 @@
-import { crawlPage } from "./crawl.js"
+import { crawlSiteAsync } from "./crawl.js"
 import { printReport } from "./report.js"
 
 async function main() {
@@ -8,19 +8,28 @@ async function main() {
   }
 
   const baseURL = process.argv[2]
-  let maxDepth = 5
+  let maxConcurrency = 5 // default concurrency
+  let maxDepth = 5 // default depth
 
   if (process.argv.length >= 4) {
-    const depthArg = parseInt(process.argv[3])
+    const concurrencyArg = parseInt(process.argv[3])
+    if (!isNaN(concurrencyArg) && concurrencyArg > 0) {
+        maxConcurrency = concurrencyArg
+    }
+  }
+
+    if (process.argv.length >= 5) {
+    const depthArg = parseInt(process.argv[4])
     if (!isNaN(depthArg) && depthArg > 0) {
         maxDepth = depthArg
     }
   }
 
   console.log(`starting crawl of ${baseURL}`)
-    console.log(`Safety features: max depth ${maxDepth}, 1 second delay between requests`)
+    console.log(`Concurrency: ${maxConcurrency} simultaneous requests`)
+    console.log(`Max Depth: ${maxDepth}`)
   
-  const pages = await crawlPage(baseURL, baseURL, {}, 0, maxDepth)
+  const pages = await crawlSiteAsync(baseURL, maxConcurrency, maxDepth)
   printReport(pages)
 }
 

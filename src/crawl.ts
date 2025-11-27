@@ -177,6 +177,119 @@ async function getHTML(url: string): Promise<string | null> {
   }
 }
 
+import pLimit from "p-limit"
+
+class ConcurrentCrawler {
+  private baseURL: string
+  private pages: Pages
+  private limit: (fn: () => Promise<any>) => Promise<any>
+  private visited: Set<string> = new Set()
+
+  constructor(baseURL: string, maxConcurrency: number = 5) {
+    this.baseURL = baseURL
+    this.pages = {}
+    this.limit = pLimit(maxConcurrency)
+  }
+
+  private addPageVisit(normalisedURL: string): boolean {
+    // If we've already visited this page in this crawl session, return false
+    if (this.visited.has(normalisedURL)) {
+      return false
+    }
+
+    // Mark as visited
+    this.visited.add(normalisedURL)
+
+    // Update pages count (like before)
+    if (this.pages[normalisedURL]) {
+      this.pages[normalisedURL]++
+    } else {
+      this.pages[normalisedURL] = 1
+    }
+
+    return true
+  }
+
+  private async getHTML(currentURL: string): Promise<string | null> {
+    return await this.limit(async () => {
+      try {
+        const response = await fetch(currentURL, {
+          headers: {
+            'User-Agent': 'BootCrawler/1.0'
+          }
+        })
+
+        if (response.status > 399) {
+          console.log(`error in fetch with status code: ${response.status} on page: ${currentURL}`)
+          return null
+        }
+
+        const contentType = response.headers.get('content-type')
+        if (!contentType?.includes('text/html')) {
+          console.log(`not html response, content type: ${contentType}, on page: ${currentURL}`)
+          return null
+        }
+
+        return await response.text()
+      } catch (err: any) {
+        console.log(`error in fetch: ${err.message}, on page: ${currentURL}`)
+        return null
+      }
+    })
+  }
+
+  private async crawlPage(currentURL: string, depth: number = 0, maxDepth: number = 5): Promise<void> {
+    // Check depth limit
+    if (depth > maxDepth) {
+        console.log(`max depth (${maxDepth}) reached at: ${currentURL}`)
+        return
+    }
+
+    // Check if URL is on the same domain
+    const baseURLObj = new URL(this.baseURL)
+    const currentURLObj = new URL(currentURL)
+    if (baseURLObj.hostname !== currentURLObj.hostname) {
+      return
+    }
+
+    // Get normalised URL and check if we should crawl it
+    const normalisedURL = normaliseURL(currentURL)
+    if (!this.addPageVisit(normalisedURL)) {
+      return // Already visited or being visited
+    }
+
+    console.log(`[Concurrent - Depth ${depth}] actively crawling: ${currentURL}`)
+
+    // Get HTML
+    const html = await this.getHTML(currentURL)
+    if (!html) {
+      return
+    }
+
+    // Get all URLs from HTML
+    const nextURLs = getURLsFromHTML(html, this.baseURL)
+
+    // Create promises for each next URL and wait for them concurrently
+    const crawlPromises = nextURLs.map(nextURL => 
+      this.crawlPage(nextURL, depth + 1, maxDepth)
+    )
+
+    await Promise.all(crawlPromises)
+  }
+
+  async crawl(maxDepth: number = 5): Promise<Pages> {
+    console.log(`Starting concurrent crawl of ${this.baseURL} (max depth: ${maxDepth})` ) 
+    await this.crawlPage(this.baseURL, 0, maxDepth)
+    return this.pages
+  }
+}
+
+// Helper function to use the concurrent crawler
+async function crawlSiteAsync(baseURL: string, maxConcurrency: number = 5, maxDepth: number = 5): Promise<Pages> {
+  const crawler = new ConcurrentCrawler(baseURL, maxConcurrency)
+  return await crawler.crawl(maxDepth)
+}
+
 export {
     normaliseURL,
     getURLsFromHTML,
@@ -185,5 +298,6 @@ export {
     getFirstParagraphFromHTML,
     getImagesFromHTML,
     extractPageData,
-    getHTML
+    getHTML,
+    crawlSiteAsync
 }
