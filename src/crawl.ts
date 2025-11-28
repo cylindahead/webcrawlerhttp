@@ -184,23 +184,42 @@ class ConcurrentCrawler {
   private pages: Pages
   private limit: (fn: () => Promise<any>) => Promise<any>
   private visited: Set<string> = new Set()
+  private maxPages: number
+  private shouldStop: boolean = false
+  private allTasks: Set<Promise<void>> = new Set()
+  private abortController: AbortController
 
-  constructor(baseURL: string, maxConcurrency: number = 5) {
+  constructor(baseURL: string, maxConcurrency: number = 5, maxPages: number = 100) {
     this.baseURL = baseURL
     this.pages = {}
     this.limit = pLimit(maxConcurrency)
+    this.maxPages = maxPages
+    this.abortController = new AbortController()
   }
 
   private addPageVisit(normalisedURL: string): boolean {
-    // If we've already visited this page in this crawl session, return false
+    // Check if we should stop crawling
+    if (this.shouldStop) {
+      return false
+    }
+
+    // Check if we've already visited this page
     if (this.visited.has(normalisedURL)) {
+        return false
+    }
+
+    // Check if we've reached the maximum number of pages
+    if (this.visited.size >= this.maxPages) {
+      console.log(`Reached maximum number of pages to crawl (${this.maxPages}).`)
+      this.shouldStop = true
+      this.abortController.abort()
       return false
     }
 
     // Mark as visited
     this.visited.add(normalisedURL)
 
-    // Update pages count (like before)
+    // Update pages count
     if (this.pages[normalisedURL]) {
       this.pages[normalisedURL]++
     } else {
@@ -216,7 +235,8 @@ class ConcurrentCrawler {
         const response = await fetch(currentURL, {
           headers: {
             'User-Agent': 'BootCrawler/1.0'
-          }
+          },
+          signal: this.abortController.signal // Add abort signal
         })
 
         if (response.status > 399) {
@@ -224,21 +244,30 @@ class ConcurrentCrawler {
           return null
         }
 
-        const contentType = response.headers.get('content-type')
-        if (!contentType?.includes('text/html')) {
+        const contentType = response.headers.get("content-type")
+        if (!contentType?.includes("text/html")) {
           console.log(`not html response, content type: ${contentType}, on page: ${currentURL}`)
           return null
         }
 
         return await response.text()
       } catch (err: any) {
-        console.log(`error in fetch: ${err.message}, on page: ${currentURL}`)
+        if (err.name === "AbortError") {
+            console.log("Fetch aborted due to max pages reached")
+        } else {
+            console.log(`error in fetch: ${err.message}, on page: ${currentURL}`)
+        }
         return null
       }
     })
   }
 
   private async crawlPage(currentURL: string, depth: number = 0, maxDepth: number = 5): Promise<void> {
+    // Check if we should stop crawling
+    if (this.shouldStop) {
+        return
+    }
+
     // Check depth limit
     if (depth > maxDepth) {
         console.log(`max depth (${maxDepth}) reached at: ${currentURL}`)
@@ -255,10 +284,10 @@ class ConcurrentCrawler {
     // Get normalised URL and check if we should crawl it
     const normalisedURL = normaliseURL(currentURL)
     if (!this.addPageVisit(normalisedURL)) {
-      return // Already visited or being visited
+      return // Already visited, being visited, or max pages reached
     }
 
-    console.log(`[Concurrent - Depth ${depth}] actively crawling: ${currentURL}`)
+    console.log(`[Concurrent - Depth ${depth}] actively crawling: ${currentURL} (${this.visited.size}/${this.maxPages} pages)`)
 
     // Get HTML
     const html = await this.getHTML(currentURL)
@@ -274,19 +303,45 @@ class ConcurrentCrawler {
       this.crawlPage(nextURL, depth + 1, maxDepth)
     )
 
+    // Add tasks to the tracking set and remove when complete
+    for (const promise of crawlPromises) {
+      this.allTasks.add(promise)
+      promise.finally(() => {
+        this.allTasks.delete(promise)
+      })
+    }
+
     await Promise.all(crawlPromises)
   }
 
   async crawl(maxDepth: number = 5): Promise<Pages> {
-    console.log(`Starting concurrent crawl of ${this.baseURL} (max depth: ${maxDepth})` ) 
-    await this.crawlPage(this.baseURL, 0, maxDepth)
+    console.log(`Starting concurrent crawl of ${this.baseURL} (max depth: ${maxDepth}, max pages: ${this.maxPages})`)
+
+    // Start the initial crawl
+    const initialTask = this.crawlPage(this.baseURL, 0, maxDepth)
+    this.allTasks.add(initialTask)
+    initialTask.finally(() => {
+      this.allTasks.delete(initialTask)
+    })
+
+    // Wait for all tasks to complete
+    while (this.allTasks.size > 0) {
+      await Promise.all(Array.from(this.allTasks))
+    }
+
+    console.log(`Crawl complted! Visited ${this.visited.size} unique pages`)
     return this.pages
   }
 }
 
 // Helper function to use the concurrent crawler
-async function crawlSiteAsync(baseURL: string, maxConcurrency: number = 5, maxDepth: number = 5): Promise<Pages> {
-  const crawler = new ConcurrentCrawler(baseURL, maxConcurrency)
+async function crawlSiteAsync(
+    baseURL: string, 
+    maxConcurrency: number = 5, 
+    maxDepth: number = 5,
+    maxPages: number = 100
+): Promise<Pages> {
+  const crawler = new ConcurrentCrawler(baseURL, maxConcurrency, maxPages)
   return await crawler.crawl(maxDepth)
 }
 

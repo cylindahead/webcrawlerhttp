@@ -18,7 +18,10 @@
     "start": "tsx ./src/index.ts",
     "test": "vitest run",
     "test watch": "vitest",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "crawl:small": "npm run start -- https://wagslane.dev 3 2 10",
+    "crawl:medium": "npm run start -- https://wagslane.dev 5 3 50",
+    "crawl:large": "npm run start -- https://wagslane.dev 10 5 200"
   },
   "jest": {
     "extensionsToTreatAsEsm": [

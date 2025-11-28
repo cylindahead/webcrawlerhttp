@@ -4,13 +4,16 @@ import { printReport } from "./report.js"
 async function main() {
   if (process.argv.length < 3) {
     console.log("no website provided")
+    console.log("usage: npm run start <URL> <maxConcurrency> <maxPages>")
     process.exit(1)
   }
 
   const baseURL = process.argv[2]
   let maxConcurrency = 5 // default concurrency
   let maxDepth = 5 // default depth
+  let maxPages = 100 // deafult max pages
 
+// Parse concurrency
   if (process.argv.length >= 4) {
     const concurrencyArg = parseInt(process.argv[3])
     if (!isNaN(concurrencyArg) && concurrencyArg > 0) {
@@ -18,6 +21,7 @@ async function main() {
     }
   }
 
+// Parse depth
     if (process.argv.length >= 5) {
     const depthArg = parseInt(process.argv[4])
     if (!isNaN(depthArg) && depthArg > 0) {
@@ -25,11 +29,20 @@ async function main() {
     }
   }
 
+ // Parse maxPages
+  if (process.argv.length >= 6) {
+    const pagesArg = parseInt(process.argv[5])
+    if (!isNaN(pagesArg) && pagesArg > 0) {
+        maxPages = pagesArg
+    }
+  }
+
   console.log(`starting crawl of ${baseURL}`)
     console.log(`Concurrency: ${maxConcurrency} simultaneous requests`)
     console.log(`Max Depth: ${maxDepth}`)
+    console.log(`Max Pages: ${maxPages}`)
   
-  const pages = await crawlSiteAsync(baseURL, maxConcurrency, maxDepth)
+  const pages = await crawlSiteAsync(baseURL, maxConcurrency, maxDepth, maxPages)
   printReport(pages)
 }
 
