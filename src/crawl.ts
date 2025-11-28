@@ -1,4 +1,5 @@
 import { JSDOM } from "jsdom"
+import pLimit from "p-limit"
 
 interface Pages {
     [key: string]: number
@@ -10,6 +11,12 @@ interface ExtractedPageData {
   first_paragraph: string
   outgoing_links: string[]
   image_urls: string[]
+}
+
+// Add this new interface for the crawler's data storage
+interface CrawlerData {
+  pageCounts: Pages
+  pageData: Record<string, ExtractedPageData>
 }
 
 function delay(ms: number): Promise<void> {
@@ -177,12 +184,10 @@ async function getHTML(url: string): Promise<string | null> {
   }
 }
 
-import pLimit from "p-limit"
-
 class ConcurrentCrawler {
   private baseURL: string
-  private pages: Pages
-  private limit: (fn: () => Promise<any>) => Promise<any>
+  private data: CrawlerData
+  private limit: ReturnType<typeof pLimit>
   private visited: Set<string> = new Set()
   private maxPages: number
   private shouldStop: boolean = false
@@ -191,7 +196,10 @@ class ConcurrentCrawler {
 
   constructor(baseURL: string, maxConcurrency: number = 5, maxPages: number = 100) {
     this.baseURL = baseURL
-    this.pages = {}
+    this.data = {
+      pageCounts: {},
+      pageData: {}
+    }
     this.limit = pLimit(maxConcurrency)
     this.maxPages = maxPages
     this.abortController = new AbortController()
@@ -220,10 +228,10 @@ class ConcurrentCrawler {
     this.visited.add(normalisedURL)
 
     // Update pages count
-    if (this.pages[normalisedURL]) {
-      this.pages[normalisedURL]++
+    if (this.data.pageCounts[normalisedURL]) {
+      this.data.pageCounts[normalisedURL]++
     } else {
-      this.pages[normalisedURL] = 1
+      this.data.pageCounts[normalisedURL] = 1
     }
 
     return true
@@ -295,6 +303,10 @@ class ConcurrentCrawler {
       return
     }
 
+    // Extract and store page data
+    const extractedData = extractPageData(html, currentURL)
+    this.data.pageData[normalisedURL] = extractedData
+
     // Get all URLs from HTML
     const nextURLs = getURLsFromHTML(html, this.baseURL)
 
@@ -314,7 +326,7 @@ class ConcurrentCrawler {
     await Promise.all(crawlPromises)
   }
 
-  async crawl(maxDepth: number = 5): Promise<Pages> {
+  async crawl(maxDepth: number = 5): Promise<CrawlerData> {
     console.log(`Starting concurrent crawl of ${this.baseURL} (max depth: ${maxDepth}, max pages: ${this.maxPages})`)
 
     // Start the initial crawl
@@ -330,19 +342,20 @@ class ConcurrentCrawler {
     }
 
     console.log(`Crawl complted! Visited ${this.visited.size} unique pages`)
-    return this.pages
+    return this.data
   }
 }
 
-// Helper function to use the concurrent crawler
+// Update crawlSiteAsync to return both counts and data
 async function crawlSiteAsync(
     baseURL: string, 
     maxConcurrency: number = 5, 
     maxDepth: number = 5,
     maxPages: number = 100
-): Promise<Pages> {
+): Promise<{ pageCounts: Pages; pageData: Record<string, ExtractedPageData> }> {
   const crawler = new ConcurrentCrawler(baseURL, maxConcurrency, maxPages)
-  return await crawler.crawl(maxDepth)
+  const data = await crawler.crawl(maxDepth)
+  return data
 }
 
 export {

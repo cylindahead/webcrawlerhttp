@@ -1,5 +1,5 @@
 import { crawlSiteAsync } from "./crawl.js"
-import { printReport } from "./report.js"
+import { writeCSVReport, printReport } from "./report.js"
 
 async function main() {
   if (process.argv.length < 3) {
@@ -13,7 +13,7 @@ async function main() {
   let maxDepth = 5 // default depth
   let maxPages = 100 // deafult max pages
 
-// Parse concurrency
+// Parse command line arguments
   if (process.argv.length >= 4) {
     const concurrencyArg = parseInt(process.argv[3])
     if (!isNaN(concurrencyArg) && concurrencyArg > 0) {
@@ -38,12 +38,18 @@ async function main() {
   }
 
   console.log(`starting crawl of ${baseURL}`)
-    console.log(`Concurrency: ${maxConcurrency} simultaneous requests`)
-    console.log(`Max Depth: ${maxDepth}`)
-    console.log(`Max Pages: ${maxPages}`)
+  console.log(`Concurrency: ${maxConcurrency} simultaneous requests`)
+  console.log(`Max Depth: ${maxDepth}`)
+  console.log(`Max Pages: ${maxPages}`)
   
-  const pages = await crawlSiteAsync(baseURL, maxConcurrency, maxDepth, maxPages)
-  printReport(pages)
+  const data = await crawlSiteAsync(baseURL, maxConcurrency, maxDepth, maxPages)
+
+  // Generate CSV Report (NEW)
+  writeCSVReport(data.pageData)
+
+  // Keep the original report for counts (optional)
+  console.log("\n=== PAGE COUNT SUMMARY ===")
+  printReport(data.pageCounts)
 }
 
 main()
