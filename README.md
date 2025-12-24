@@ -51,11 +51,11 @@ npm run crawl:large    # 10 concurrent, depth 5, 200 pages
 ## Output
 The crawler generates two types of output:
 1. CSV Report (report.csv): Contains detailed extracted data including:
-   1.1. Page URL
-   1.2. H1 text
-   1.3. First paragraph
-   1.4. Outgoing links (semicolon-separated)
-   1.5. Image URLs (semicolon-separated)
+- Page URL
+- H1 text
+- First paragraph
+- Outgoing links (semicolon-separated)
+- Image URLs (semicolon-separated)
 3. Console Summary: Shows page count statistics
 
 ## Project Structure
