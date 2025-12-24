@@ -86,7 +86,7 @@ webcrawlerhttp/
 
 ## Reporting
 - writeCSVReport() - Generates CSV report from extracted data
--MprintReport() - Prints page count summary to console
+- printReport() - Prints page count summary to console
 
 ## Configuration
 The crawler can be configured via command-line arguments:
