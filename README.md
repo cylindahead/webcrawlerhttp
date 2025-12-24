@@ -56,7 +56,7 @@ The crawler generates two types of output:
 - First paragraph
 - Outgoing links (semicolon-separated)
 - Image URLs (semicolon-separated)
-3. Console Summary: Shows page count statistics
+2. Console Summary: Shows page count statistics
 
 ## Project Structure
 ```text
